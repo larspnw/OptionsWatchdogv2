@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Options Watchdog v2
+
+
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 30
+
+Resources:
+  OptionsWatchdogFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/
+      Handler: optionsWatchdog.lambda_handler
+      Runtime: python3.7
+      Events:
+        OptionsWatchdog:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /optionsWatchdogv2
+            Method: get
+
+  OptionsModFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/
+      Handler: optionsMod.lambda_handler
+      Runtime: python3.7
+      Events:
+        OptionsMod:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /optionsModv2
+            Method: post
+
+Outputs:
+  OptionsWatchdogApi:
+    Description: "API Gateway endpoint URL for Prod stage for options watchdog v2 function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/optionsWatchdogv2/"
+  OptionsWatchdogFunction:
+    Description: "Options Watchdog Function ARN"
+    Value: !GetAtt OptionsWatchdogFunction.Arn
+  OptionsWatchdogIamRole:
+    Description: "Implicit IAM Role created for Options Watchdog function"
+    Value: !GetAtt OptionsWatchdogFunctionRole.Arn
+
+  OptionsModApi:
+    Description: "API Gateway endpoint URL for Prod stage for options mod v2 function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/optionsModv2/"
+  OptionsModFunction:
+    Description: "Options Mod Function ARN"
+    Value: !GetAtt OptionsModFunction.Arn
+  OptionsModIamRole:
+    Description: "Implicit IAM Role created for Options Mod function"
+    Value: !GetAtt OptionsModFunctionRole.Arn
