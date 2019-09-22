@@ -7,18 +7,19 @@ import logging
 import io
 import sys
 import time
+from multiprocessing import Process, Pipe
+import os
+
 
 OPTIONSFILE = 'optionsData.txt'
 # OPTIONSFILE = 'optionsDataTest.txt'  #test file
 OPTIONSFILETEST = 'optionsDataTest.txt'  # test file
 # Retrieve the logger instance
 logger = logging.getLogger()
-
 logger.setLevel(logging.INFO)
-# logger.setLevel(logging.DEBUG)
-#PERF = True
-PERF = False
-
+#logger.setLevel(logging.DEBUG)
+#PERF = False
+PERF = True
 HEADER = "   Stock DTE CurrPrice OptsPrice Type Status %OTM Prem"
 date_format = "%Y/%m/%d"
 today = datetime.today()
@@ -27,6 +28,14 @@ isAWS = True
 yPrice = {}
 spanReCompile = re.compile(r'[><]')
 
+#concurrency: increasing lambda memory made multi thread possible. Env var set at 10
+CONCURRENCY_SIZE = os.environ['CONCURRENCY_SIZE']
+if CONCURRENCY_SIZE is None:
+    CONCURRENCY_SIZE = 2
+else:
+    CONCURRENCY_SIZE = int(CONCURRENCY_SIZE)
+    logging.info("Read CONCURRENCY_SIZE")
+logging.info("CONCURRENCY_SIZE: " + str(CONCURRENCY_SIZE))
 
 class StockIndex:
     name = ""
@@ -152,7 +161,7 @@ def lambda_handler(event, context):
         OPTIONSFILE = OPTIONSFILETEST
         logging.info("using test options file")
 
-    r = run2()
+    r = runMP()
     if requestJson:
         return {
             'statusCode': 200,
@@ -221,32 +230,39 @@ def parseBid3(b):
 def yScrape2(stock):
     if PERF:
         enter = time.time()
-    logging.debug("yScrape2 enter")
+    logging.debug("yScrape2 enter for " + stock)
     url = "https://finance.yahoo.com/quote/" + stock
     response = requests.get(url)
+    logging.debug("yScrape2 response for " + stock)
     if PERF:
         logging.info("PERFM: request: " + str(time.time() - enter))
+        enter = time.time()
 
     soup = BeautifulSoup(response.text, "lxml")
     #soup = BeautifulSoup(response.text, "html.parser")
 
-    for tag in soup.find_all('span'):
-        logging.debug(tag)
-        z = re.search(r"data-reactid=\"14\"", str(tag))
-        # logging.debug("re: " + str(z))
-        if z:
-            # logging.debug("z: " + str(z))
-            if PERF:
-                end = time.time()
-                delta = end - enter
-                logging.info("PERFM: yScrape2: " + str(delta))
+    tag = soup.find_all('span', class_="Trsdu(0.3s) Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(b)")
+    if PERF:
+        logging.info("PERFM: yScrape2: " + str(time.time()-enter))
+    if tag:
+        return str(tag)
 
-            return str(tag)
-            break
+    #for tag in soup.find_all('span'):
+        #logging.debug(tag)
+        #z = re.search(r"data-reactid=\"14\"", str(tag))
+        ## logging.debug("re: " + str(z))
+        #if z:
+            ## logging.debug("z: " + str(z))
+            #if PERF:
+                #end = time.time()
+                #delta = end - enter
+                #logging.info("PERFM: bs scrape: " + str(delta))
 
+            #return str(tag)
+            #break
+    #TODO ERROR handling
     logging.debug("no last price found")
     return "---"
-
 
 # looks for Bid in span then reads price
 def yScrape(stock):
@@ -343,6 +359,86 @@ def getFromDynamo():
     data = response['Items']
     return data
 
+def chunks(processes, maxThreads):
+    for i in range(0, len(processes), maxThreads):
+        yield processes[i:i+maxThreads]
+
+#Run multiprocess scrape and parsing
+def runMP():
+    data = getFromDynamo()
+    stockOptionsList = []
+    stockList = []
+    processes = []
+    parentConnections = []
+    starttime = time.time()
+    #build list of stocks to scrape and parse
+    for d in data:
+        if d.get("name") not in stockList:
+            stockList.append(d.get("name"))
+    logger.debug("stockList::>")
+    logger.debug(stockList)
+
+    #start multiple processes to work on the list
+    for stock in stockList:
+        parent_conn, child_conn = Pipe()
+        parentConnections.append(parent_conn)
+        p = Process(target=bid_worker, args=(stock,child_conn))
+        processes.append(p)
+
+    #chunking is not efficient but AWS lambda doesn't support shared mem and associated mp methods
+    for procSet in chunks(processes, CONCURRENCY_SIZE):
+        logging.debug("procSet::")
+        logging.debug(procSet)
+        for proc in procSet:
+            proc.start()
+        logging.debug("chunk started")
+        for proc in procSet:
+            proc.join()
+        logging.debug("chunk joined")
+        #p.start()
+
+    #logging.debug("processes started")
+    #for process in processes:
+        #process.join()
+    #logging.debug("processes joined")
+
+    #assemble results and profit
+    bids = {}
+    for parentConnection in parentConnections:
+        recv = parentConnection.recv()[0]
+        a = recv.split(':')
+        bids[a[0]] = float(a[1])
+
+    logging.debug("bid results::>")
+    logging.debug(bids)
+
+    for d in data:
+        logging.debug("d: ", d)
+        so = StockOpt()
+        so.name = d.get("name", "***")
+        so.optType = d.get("type", "")
+        so.optsPrice = float(d.get("optionsPrice", 9999))
+        so.expirationDate = d.get("expirationDate", "1970/1/1")
+        so.premium = d.get("premium", 0)
+        a = datetime.strptime(so.expirationDate, date_format)
+        so.DTE = (a - today).days + 1
+        [so.IOTM, so.pctIOTM] = so.calcPct(bids[so.name])
+        so.currentPrice = bids[so.name]
+        stockOptionsList.append(so)
+        logging.debug(so)
+        #TODO add breakeven obj here
+
+    if PERF:
+        logging.info("PERFM: scrape/parse time: " + str(time.time()-starttime))
+    list = []
+    # sort by ITM then DTE
+    stockOptionsList.sort(key=lambda stockOptions: stockOptions.pctIOTM)
+    stockOptionsList.sort(key=lambda stockOptions: stockOptions.DTE)
+    stockOptionsList.sort(key=lambda stockOptions: stockOptions.IOTM)
+
+    for e in stockOptionsList:
+        list.append(e.toJson())
+    return list
 
 def run2():
     # TODO fix duplicate code
@@ -350,6 +446,9 @@ def run2():
     # load from db
     data = getFromDynamo()
     stockOptionsList = []
+
+    #TODO - get all the stock symbols, multiproc the scrape and parse, build price map
+    #then build SO objects
 
     for d in data:
         if PERF:
@@ -463,17 +562,21 @@ def run(requestJson):
     else:
         return output.getvalue()
 
+def bid_worker(name, conn):
+    logging.debug("bid_worker entered for " + name)
+    r = yScrape2(name)
+    logging.debug("bid_worker scraped " + name)
+    conn.send([name + ":" + str(parseBid2(r))])
+    conn.close()
 
 if __name__ == '__main__':
-    isAWS = False
-    requestJson = False
-    if len(sys.argv) == 2:
-        if sys.argv[1] == '-json':
-            logging.debug("request for json output")
-            requestJson = True
-    r = run(requestJson)
-    if requestJson:
-        # logging.debug("r: " + str(len(r)))
-        print(json.dumps(r))
-    else:
-        print(r)
+    runMP()
+    #stockName = ['GOOG', 'AMZN', 'MSFT', 'WORK']
+    #p = multiprocessing.Pool(4)
+    #start = time.time()
+    #r = p.map(bid_worker, stockName)
+    #print("time: " + str(time.time()-start))
+    #print("r::>")
+    #print(r)
+
+
