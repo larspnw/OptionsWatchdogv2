@@ -12,7 +12,8 @@ Globals:
     MemorySize: 512
     Environment:
       Variables:
-        CONCURRENCY_SIZE: 10
+        CONCURRENCY_SIZE: 5
+        DEBUG: 0
 
 Resources:
   OptionsWatchdogFunction:

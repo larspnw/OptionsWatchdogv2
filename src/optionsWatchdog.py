@@ -14,9 +14,12 @@ OPTIONSFILE = 'optionsData.txt'
 # OPTIONSFILE = 'optionsDataTest.txt'  #test file
 OPTIONSFILETEST = 'optionsDataTest.txt'  # test file
 # Retrieve the logger instance
+DEBUG = os.getenv('DEBUG', default=0)
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-#logger.setLevel(logging.DEBUG)
+if DEBUG == "1":
+    logger.setLevel(logging.DEBUG)
+else:
+    logger.setLevel(logging.INFO)
 PERF = False
 #PERF = True
 HEADER = "   Stock DTE CurrPrice OptsPrice Type Status %OTM Prem"
@@ -29,12 +32,7 @@ spanReCompile = re.compile(r'[><]')
 
 #concurrency: increasing lambda memory made multi thread possible. Env var set at 10
 CONCURRENCY_SIZE = os.getenv('CONCURRENCY_SIZE', default=2)
-#CONCURRENCY_SIZE = os.environ['CONCURRENCY_SIZE']
-#if CONCURRENCY_SIZE is None:
-    #CONCURRENCY_SIZE = 2
-#else:
 CONCURRENCY_SIZE = int(CONCURRENCY_SIZE)
-#logging.info("Read CONCURRENCY_SIZE")
 logging.info("CONCURRENCY_SIZE: " + str(CONCURRENCY_SIZE))
 
 class StockIndex:
@@ -61,6 +59,7 @@ class StockOpt:
     DTE = 0
     premium = 0
     alert = "n"
+    breakEvenNet = 0
 
     def calcPct(self, bid):
         optionsType = self.optType
@@ -128,6 +127,7 @@ class StockOpt:
         j['pctIOTM'] = "{:>.0f}%".format(self.pctIOTM)
         j['premium'] = self.premium
         j['expirationDate'] = self.expirationDate
+        j['breakEvenNet'] = self.breakEvenNet
         return j
 
 
@@ -317,9 +317,15 @@ def runMP():
         so.DTE = (a - today).days + 1
         [so.IOTM, so.pctIOTM] = so.calcPct(bids[so.name])
         so.currentPrice = bids[so.name]
+        if so.optType == "put":
+            breakEvenNet = so.currentPrice - so.optsPrice + float(so.premium)
+        else:
+            breakEvenNet = so.optsPrice - so.currentPrice + float(so.premium)
+        so.breakEvenNet = float("{0:.2f}".format(breakEvenNet))
+
         stockOptionsList.append(so)
+        logging.debug("so::")
         logging.debug(so)
-        #TODO add breakeven obj here
 
     if PERF:
         logging.info("PERFM: scrape/parse time: " + str(time.time()-starttime))
