@@ -5,7 +5,6 @@ import re
 from datetime import datetime
 import logging
 import io
-import sys
 import time
 from multiprocessing import Process, Pipe
 import os
@@ -18,8 +17,8 @@ OPTIONSFILETEST = 'optionsDataTest.txt'  # test file
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 #logger.setLevel(logging.DEBUG)
-#PERF = False
-PERF = True
+PERF = False
+#PERF = True
 HEADER = "   Stock DTE CurrPrice OptsPrice Type Status %OTM Prem"
 date_format = "%Y/%m/%d"
 today = datetime.today()
@@ -29,12 +28,13 @@ yPrice = {}
 spanReCompile = re.compile(r'[><]')
 
 #concurrency: increasing lambda memory made multi thread possible. Env var set at 10
-CONCURRENCY_SIZE = os.environ['CONCURRENCY_SIZE']
-if CONCURRENCY_SIZE is None:
-    CONCURRENCY_SIZE = 2
-else:
-    CONCURRENCY_SIZE = int(CONCURRENCY_SIZE)
-    logging.info("Read CONCURRENCY_SIZE")
+CONCURRENCY_SIZE = os.getenv('CONCURRENCY_SIZE', default=2)
+#CONCURRENCY_SIZE = os.environ['CONCURRENCY_SIZE']
+#if CONCURRENCY_SIZE is None:
+    #CONCURRENCY_SIZE = 2
+#else:
+CONCURRENCY_SIZE = int(CONCURRENCY_SIZE)
+#logging.info("Read CONCURRENCY_SIZE")
 logging.info("CONCURRENCY_SIZE: " + str(CONCURRENCY_SIZE))
 
 class StockIndex:
@@ -137,14 +137,11 @@ def respondWithError(message):
         'body': json.dumps(message)
     }
 
-
 def lambda_handler(event, context):
     logging.debug("lambda_handler enter")
     logger.debug('## EVENT')
     logger.debug(event)
     yPrice.clear()
-    requestJson = False
-    # try:
     if 'queryStringParameters' in event and 'getIndexes' in event['queryStringParameters']:
         r = runIndexes()
         return {
@@ -152,33 +149,13 @@ def lambda_handler(event, context):
             'body': json.dumps(r)
         }
 
-    if 'queryStringParameters' in event and 'requestJson' in event['queryStringParameters']:
-        rj = event["queryStringParameters"]["requestJson"]
-        if str(rj) == "true":
-            # logging.info("setting request for json")
-            requestJson = True
-    if 'queryStringParameters' in event and 'test' in event['queryStringParameters']:
-        OPTIONSFILE = OPTIONSFILETEST
-        logging.info("using test options file")
-
     r = runMP()
-    if requestJson:
-        return {
-            'statusCode': 200,
-            'body': json.dumps(r)
-
-            # 'statusCode': 200,
-            # 'body': r
-        }
-
-
-# except Exception as e:
-# logging.error("Exiting with failure: " + e.message)
-# respondWithError("Failure occurred: " + e.message)
+    return {
+        'statusCode': 200,
+        'body': json.dumps(r)
+    }
 
 def runIndexes():
-    # TODO create array and loop thru array for indexes
-
     indexes = ["^VIX", "^GSPC"]
     id = "16"
     ilist = []
@@ -192,7 +169,6 @@ def runIndexes():
         ilist.append(i.toJson())
 
     return ilist
-
 
 def yScrape3(stock, id):
     url = "https://finance.yahoo.com/quote/" + stock
@@ -225,7 +201,6 @@ def parseBid3(b):
     change = change.replace(")", "")
     return [price, change]
 
-
 # looks for data-reactid based on agent type
 def yScrape2(stock):
     if PERF:
@@ -247,75 +222,9 @@ def yScrape2(stock):
     if tag:
         return str(tag)
 
-    #for tag in soup.find_all('span'):
-        #logging.debug(tag)
-        #z = re.search(r"data-reactid=\"14\"", str(tag))
-        ## logging.debug("re: " + str(z))
-        #if z:
-            ## logging.debug("z: " + str(z))
-            #if PERF:
-                #end = time.time()
-                #delta = end - enter
-                #logging.info("PERFM: bs scrape: " + str(delta))
-
-            #return str(tag)
-            #break
     #TODO ERROR handling
     logging.debug("no last price found")
     return "---"
-
-# looks for Bid in span then reads price
-def yScrape(stock):
-    logging.debug("yScrape enter")
-    bid = ""
-    url = "https://finance.yahoo.com/quote/" + stock
-    response = requests.get(url)
-
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    isBid = False
-
-    for tag in soup.find_all('span'):
-        # logging.debug(tag)
-        if isBid:
-            bid = str(tag)
-            isBid = False
-            # that's all we're looking for - now
-            logging.debug("Found bid: " + bid)
-            break
-
-        z = re.search(r"Bid", str(tag))
-        if z:
-            isBid = True;
-
-    logging.debug("bid: " + stock + " -- " + bid)
-    return bid
-
-
-def loadOptionsData():
-    if isAWS == True:
-        import boto3
-        s3 = boto3.client('s3')
-        try:
-            data = s3.get_object(Bucket='larsbucket1', Key=OPTIONSFILE)
-            json_data = json.load(data['Body'])
-            # json_data = json.load(data['Body'].read())
-            return json_data
-        except Exception as e:
-            logging.critical(e)
-            raise e
-
-    else:
-        logging.debug("loadOptionsData enter")
-        try:
-            with open(OPTIONSFILE) as json_file:
-                data = json.load(json_file)
-        except FileNotFoundError:
-            print("Error: file not found: " + filename)
-            logging.critical("Error: file not found: " + filename)
-            exit(1)
-        return data
-
 
 def parseBid2(b):
     if PERF:
@@ -338,17 +247,6 @@ def parseBid2(b):
         logging.error("Could not convert bid: " + str(b))
         raise Exception("parsebid2: could not convert bid for " + b)
         # return 9999
-
-
-def parseBid(b):
-    try:
-        a = b.split('>')
-        b = a[1].split(' ')
-        return float(b[0].replace(",", ""))
-    except ValueError:
-        logging.warning("Could not convert bid: " + str(b))
-        return 9999
-
 
 def getFromDynamo():
     import boto3
@@ -397,11 +295,6 @@ def runMP():
         logging.debug("chunk joined")
         #p.start()
 
-    #logging.debug("processes started")
-    #for process in processes:
-        #process.join()
-    #logging.debug("processes joined")
-
     #assemble results and profit
     bids = {}
     for parentConnection in parentConnections:
@@ -440,128 +333,6 @@ def runMP():
         list.append(e.toJson())
     return list
 
-def run2():
-    # TODO fix duplicate code
-
-    # load from db
-    data = getFromDynamo()
-    stockOptionsList = []
-
-    #TODO - get all the stock symbols, multiproc the scrape and parse, build price map
-    #then build SO objects
-
-    for d in data:
-        if PERF:
-            dStart = time.time()
-        logging.debug("d: ", d)
-        stock = d.get("name", "***")
-        optionsType = d.get("type", "")
-        optionsPrice = float(d.get("optionsPrice", 9999))
-        expDate = d.get("expirationDate", "1970/1/1")
-        premium = d.get("premium", 0)
-
-        try:
-            if stock in yPrice:
-                bid = yPrice[stock]
-            else:
-                r = yScrape2(stock)
-                bid = parseBid2(r)
-                yPrice[stock] = bid
-        except:
-            logging.warning("scrape and parsing failure for " + stock)
-            return (respondWithError("scrape and parsing failure for " + stock))
-
-        so = StockOpt()
-        so.name = stock
-        so.optType = optionsType
-        so.currentPrice = bid
-        so.optsPrice = optionsPrice
-        so.expirationDate = expDate
-        so.premium = premium
-        a = datetime.strptime(expDate, date_format)
-        so.DTE = (a - today).days + 1
-        [so.IOTM, so.pctIOTM] = so.calcPct(bid)
-
-        stockOptionsList.append(so)
-        if PERF:
-            logging.info("PERFM: stock=" + stock + " time: " + str(time.time() - dStart))
-
-    if PERF:
-        sortStart = time.time()
-    # enumerate list
-    list = []
-    # sort by ITM then DTE
-    stockOptionsList.sort(key=lambda stockOptions: stockOptions.pctIOTM)
-    stockOptionsList.sort(key=lambda stockOptions: stockOptions.DTE)
-    stockOptionsList.sort(key=lambda stockOptions: stockOptions.IOTM)
-
-    if PERF:
-        sortDelta = time.time() - sortStart
-        logging.info("PERFM sort: " + str(sortDelta))
-
-    for e in stockOptionsList:
-        list.append(e.toJson())
-    return list
-
-
-def run(requestJson):
-    # read file into list
-    data = loadOptionsData()
-    logging.debug(json.dumps(data, indent=4))
-
-    stockOptionsList = []
-
-    for d in data["stock"]:
-        stock = d.get("name", "***")
-        optionsType = d.get("type", "")
-        optionsPrice = float(d.get("price", 9999))
-        expDate = d.get("date", "1/1/1970")
-        premium = d.get("premium", 0)
-
-        if stock in yPrice:
-            bid = yPrice[stock]
-        else:
-            r = yScrape2(stock)
-            bid = parseBid2(r)
-            yPrice[stock] = bid
-
-        so = StockOpt()
-        so.name = stock
-        so.optType = optionsType
-        so.currentPrice = bid
-        so.optsPrice = optionsPrice
-        so.expirationDate = expDate
-        so.premium = premium
-        a = datetime.strptime(expDate, date_format)
-        so.DTE = (a - today).days
-        [so.IOTM, so.pctIOTM] = so.calcPct(bid)
-
-        stockOptionsList.append(so)
-
-    # enumerate list
-
-    if requestJson == False:
-        logger.info("no json response")
-        # report stock, price, options, in/OTM, %OTM, DTE - sort by ITM, DTE
-        output = io.StringIO()
-        output.write(HEADER + "\n")
-    list = []
-    # sort by ITM then DTE
-    stockOptionsList.sort(key=lambda stockOptions: stockOptions.pctIOTM)
-    stockOptionsList.sort(key=lambda stockOptions: stockOptions.DTE)
-    stockOptionsList.sort(key=lambda stockOptions: stockOptions.IOTM)
-    # logging.debug("sorted: " + soSorted)
-    for e in stockOptionsList:
-        if requestJson:
-            list.append(e.toJson())
-        else:
-            output.write(e.toString() + "\n")
-
-    if requestJson:
-        return list
-    else:
-        return output.getvalue()
-
 def bid_worker(name, conn):
     logging.debug("bid_worker entered for " + name)
     r = yScrape2(name)
@@ -571,12 +342,5 @@ def bid_worker(name, conn):
 
 if __name__ == '__main__':
     runMP()
-    #stockName = ['GOOG', 'AMZN', 'MSFT', 'WORK']
-    #p = multiprocessing.Pool(4)
-    #start = time.time()
-    #r = p.map(bid_worker, stockName)
-    #print("time: " + str(time.time()-start))
-    #print("r::>")
-    #print(r)
 
 
