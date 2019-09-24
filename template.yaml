@@ -9,6 +9,11 @@ Description: >
 Globals:
   Function:
     Timeout: 30
+    MemorySize: 512
+    Environment:
+      Variables:
+        CONCURRENCY_SIZE: 5
+        DEBUG: 0
 
 Resources:
   OptionsWatchdogFunction:
