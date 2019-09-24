@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Options Watchdog v2
+
+  '
+Globals:
+  Function:
+    Timeout: 30
+Outputs:
+  OptionsModApi:
+    Description: API Gateway endpoint URL for Prod stage for options mod v2 function
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/optionsModv2/
+  OptionsModFunction:
+    Description: Options Mod Function ARN
+    Value:
+      Fn::GetAtt:
+      - OptionsModFunction
+      - Arn
+  OptionsModIamRole:
+    Description: Implicit IAM Role created for Options Mod function
+    Value:
+      Fn::GetAtt:
+      - OptionsModFunctionRole
+      - Arn
+  OptionsWatchdogApi:
+    Description: API Gateway endpoint URL for Prod stage for options watchdog v2 function
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/optionsWatchdogv2/
+  OptionsWatchdogFunction:
+    Description: Options Watchdog Function ARN
+    Value:
+      Fn::GetAtt:
+      - OptionsWatchdogFunction
+      - Arn
+  OptionsWatchdogIamRole:
+    Description: Implicit IAM Role created for Options Watchdog function
+    Value:
+      Fn::GetAtt:
+      - OptionsWatchdogFunctionRole
+      - Arn
+Resources:
+  OptionsModFunction:
+    Properties:
+      CodeUri: s3://larsbucket1/4d3c0b67db8743aa1b0df94c05f2d9ea
+      Events:
+        OptionsMod:
+          Properties:
+            Method: post
+            Path: /optionsModv2
+          Type: Api
+      Handler: optionsMod.lambda_handler
+      Runtime: python3.7
+    Type: AWS::Serverless::Function
+  OptionsWatchdogFunction:
+    Properties:
+      CodeUri: s3://larsbucket1/3cb06e842dd516c2d83518243cd32418
+      Events:
+        OptionsWatchdog:
+          Properties:
+            Method: get
+            Path: /optionsWatchdogv2
+          Type: Api
+      Handler: optionsWatchdog.lambda_handler
+      Runtime: python3.7
+    Type: AWS::Serverless::Function
+Transform: AWS::Serverless-2016-10-31
