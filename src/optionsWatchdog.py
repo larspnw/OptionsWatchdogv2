@@ -9,11 +9,6 @@ import time
 from multiprocessing import Process, Pipe
 import os
 
-
-OPTIONSFILE = 'optionsData.txt'
-# OPTIONSFILE = 'optionsDataTest.txt'  #test file
-OPTIONSFILETEST = 'optionsDataTest.txt'  # test file
-# Retrieve the logger instance
 DEBUG = os.getenv('DEBUG', default=0)
 logger = logging.getLogger()
 if DEBUG == "1":
@@ -22,7 +17,6 @@ else:
     logger.setLevel(logging.INFO)
 PERF = False
 #PERF = True
-HEADER = "   Stock DTE CurrPrice OptsPrice Type Status %OTM Prem"
 date_format = "%Y/%m/%d"
 today = datetime.today()
 logging.debug(today)
@@ -60,6 +54,7 @@ class StockOpt:
     premium = 0
     alert = "n"
     breakEvenNet = 0
+    coveredCall = "n"
 
     def calcPct(self, bid):
         optionsType = self.optType
@@ -128,6 +123,7 @@ class StockOpt:
         j['premium'] = self.premium
         j['expirationDate'] = self.expirationDate
         j['breakEvenNet'] = self.breakEvenNet
+        j['coveredCall'] = self.coveredCall
         return j
 
 
@@ -142,6 +138,7 @@ def lambda_handler(event, context):
     logger.debug('## EVENT')
     logger.debug(event)
     yPrice.clear()
+    #TODO this errors out if requestJson or NO params are sent in URL
     if 'queryStringParameters' in event and 'getIndexes' in event['queryStringParameters']:
         r = runIndexes()
         return {
@@ -322,6 +319,7 @@ def runMP():
         else:
             breakEvenNet = so.optsPrice - so.currentPrice + float(so.premium)
         so.breakEvenNet = float("{0:.2f}".format(breakEvenNet))
+        so.coveredCall = d.get("coveredCall", "n")
 
         stockOptionsList.append(so)
         logging.debug("so::")
