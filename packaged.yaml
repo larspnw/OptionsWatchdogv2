@@ -4,8 +4,45 @@ Description: 'Options Watchdog v2
   '
 Globals:
   Function:
+    Environment:
+      Variables:
+        CONCURRENCY_SIZE: 5
+        DEBUG: 0
+    MemorySize: 512
     Timeout: 30
 Outputs:
+  OptionsDeleteAPI:
+    Description: API Gateway endpoint URL for Prod stage for Expired Options function
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/optionsDeletev2/{optionsKey}
+  OptionsDeleteFunction:
+    Description: Delete Options
+    Value:
+      Fn::GetAtt:
+      - OptionsDeleteFunction
+      - Arn
+  OptionsDeleteFunctionIamRole:
+    Description: Implicit IAM Role created for expired options function
+    Value:
+      Fn::GetAtt:
+      - OptionsDeleteFunctionRole
+      - Arn
+  OptionsExpiredAPI:
+    Description: API Gateway endpoint URL for Prod stage for Expired Options function
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/optionsExpiredv2/
+  OptionsExpiredFunction:
+    Description: Expired Options
+    Value:
+      Fn::GetAtt:
+      - OptionsExpiredFunction
+      - Arn
+  OptionsExpiredFunctionIamRole:
+    Description: Implicit IAM Role created for expired options function
+    Value:
+      Fn::GetAtt:
+      - OptionsExpiredFunctionRole
+      - Arn
   OptionsModApi:
     Description: API Gateway endpoint URL for Prod stage for options mod v2 function
     Value:
@@ -21,6 +58,22 @@ Outputs:
     Value:
       Fn::GetAtt:
       - OptionsModFunctionRole
+      - Arn
+  OptionsSummaryAPI:
+    Description: API Gateway endpoint URL for Prod stage for summary Options function
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/optionsSummaryv2/
+  OptionsSummaryFunction:
+    Description: Options Summary
+    Value:
+      Fn::GetAtt:
+      - OptionsSummaryFunction
+      - Arn
+  OptionsSummaryFunctionIamRole:
+    Description: Implicit IAM Role created for summary options function
+    Value:
+      Fn::GetAtt:
+      - OptionsSummaryFunctionRole
       - Arn
   OptionsWatchdogApi:
     Description: API Gateway endpoint URL for Prod stage for options watchdog v2 function
@@ -39,24 +92,70 @@ Outputs:
       - OptionsWatchdogFunctionRole
       - Arn
 Resources:
-  OptionsModFunction:
+  OptionsDeleteFunction:
     Properties:
-      CodeUri: s3://larsbucket1/4d3c0b67db8743aa1b0df94c05f2d9ea
+      CodeUri: s3://larsbucket1/90a91b03290fce4d006c1bbc7053b4a8
       Events:
         OptionsMod:
           Properties:
+            Auth:
+              ApiKeyRequired: true
+            Method: delete
+            Path: /optionsDeletev2/{optionsKey}
+          Type: Api
+      Handler: optionsDelExp.deleteOptions_handler
+      Runtime: python3.7
+    Type: AWS::Serverless::Function
+  OptionsExpiredFunction:
+    Properties:
+      CodeUri: s3://larsbucket1/17e3104078b1759df4bf972289cef819
+      Events:
+        OptionsMod:
+          Properties:
+            Auth:
+              ApiKeyRequired: true
+            Method: get
+            Path: /optionsExpiredv2
+          Type: Api
+      Handler: optionsDelExp.expiredOptions_handler
+      Runtime: python3.7
+    Type: AWS::Serverless::Function
+  OptionsModFunction:
+    Properties:
+      CodeUri: s3://larsbucket1/ffe82cea653706e08973993dd1bed38a
+      Events:
+        OptionsMod:
+          Properties:
+            Auth:
+              ApiKeyRequired: true
             Method: post
             Path: /optionsModv2
           Type: Api
       Handler: optionsMod.lambda_handler
       Runtime: python3.7
     Type: AWS::Serverless::Function
+  OptionsSummaryFunction:
+    Properties:
+      CodeUri: s3://larsbucket1/1fd85824675c19204358a37cfb89fc8f
+      Events:
+        OptionsMod:
+          Properties:
+            Auth:
+              ApiKeyRequired: true
+            Method: get
+            Path: /optionsSummaryv2
+          Type: Api
+      Handler: optionsSummary.lambda_handler
+      Runtime: python3.7
+    Type: AWS::Serverless::Function
   OptionsWatchdogFunction:
     Properties:
-      CodeUri: s3://larsbucket1/3cb06e842dd516c2d83518243cd32418
+      CodeUri: s3://larsbucket1/0cc165865eee4978938348bba4dd49b6
       Events:
         OptionsWatchdog:
           Properties:
+            Auth:
+              ApiKeyRequired: true
             Method: get
             Path: /optionsWatchdogv2
           Type: Api

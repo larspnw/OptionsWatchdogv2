@@ -1,3 +1,4 @@
 [
-{"name": "WORK", "type": "call", "price": "290", "date": "2019/01/18", "premium": "0.01"}
+{"name": "NFLX", "type": "call", "price": "285", "date": "2019/10/18", "premium": "6.91", "coveredCall": "y"},
+{"name": "NFLX", "type": "call", "price": "295", "date": "2019/10/18", "premium": "4.78", "coveredCall": "y"}
 ]
