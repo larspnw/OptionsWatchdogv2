@@ -3,8 +3,6 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   Options Watchdog v2
 
-
-
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
@@ -16,6 +14,12 @@ Globals:
         DEBUG: 0
 
 Resources:
+  OptionsWatchdogApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Auth:
+        ApiKeyRequired: true # sets for all methods
   OptionsWatchdogFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -28,7 +32,8 @@ Resources:
           Properties:
             Path: /optionsWatchdogv2
             Method: get
-
+            Auth:
+              ApiKeyRequired: true
   OptionsModFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -41,6 +46,50 @@ Resources:
           Properties:
             Path: /optionsModv2
             Method: post
+            Auth:
+              ApiKeyRequired: true
+  OptionsDeleteFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/
+      Handler: optionsDelExp.deleteOptions_handler
+      Runtime: python3.7
+      Events:
+        OptionsMod:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /optionsDeletev2/{optionsKey}
+            Method: delete
+            Auth:
+              ApiKeyRequired: true
+  OptionsExpiredFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/
+      Handler: optionsDelExp.expiredOptions_handler
+      Runtime: python3.7
+      Events:
+        OptionsMod:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /optionsExpiredv2
+            Method: get
+            Auth:
+              ApiKeyRequired: true
+  OptionsSummaryFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/
+      Handler: optionsSummary.lambda_handler
+      Runtime: python3.7
+      Events:
+        OptionsMod:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /optionsSummaryv2
+            Method: get
+            Auth:
+              ApiKeyRequired: true
 
 Outputs:
   OptionsWatchdogApi:
@@ -62,3 +111,33 @@ Outputs:
   OptionsModIamRole:
     Description: "Implicit IAM Role created for Options Mod function"
     Value: !GetAtt OptionsModFunctionRole.Arn
+
+  OptionsExpiredAPI:
+    Description: "API Gateway endpoint URL for Prod stage for Expired Options function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/optionsExpiredv2/"
+  OptionsExpiredFunction:
+    Description: "Expired Options"
+    Value: !GetAtt OptionsExpiredFunction.Arn
+  OptionsExpiredFunctionIamRole:
+    Description: "Implicit IAM Role created for expired options function"
+    Value: !GetAtt OptionsExpiredFunctionRole.Arn
+
+  OptionsDeleteAPI:
+    Description: "API Gateway endpoint URL for Prod stage for Expired Options function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/optionsDeletev2/{optionsKey}"
+  OptionsDeleteFunction:
+    Description: "Delete Options"
+    Value: !GetAtt OptionsDeleteFunction.Arn
+  OptionsDeleteFunctionIamRole:
+    Description: "Implicit IAM Role created for expired options function"
+    Value: !GetAtt OptionsDeleteFunctionRole.Arn
+
+  OptionsSummaryAPI:
+    Description: "API Gateway endpoint URL for Prod stage for summary Options function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/optionsSummaryv2/"
+  OptionsSummaryFunction:
+    Description: "Options Summary"
+    Value: !GetAtt OptionsSummaryFunction.Arn
+  OptionsSummaryFunctionIamRole:
+    Description: "Implicit IAM Role created for summary options function"
+    Value: !GetAtt OptionsSummaryFunctionRole.Arn

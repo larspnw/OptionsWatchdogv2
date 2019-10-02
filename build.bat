@@ -1,6 +1,6 @@
 @echo off
 
-set STACKNAME="optionswatchdogv2"
+set STACKNAME="optionsWatchdogv2"
 
 call sam build
 if %ERRORLEVEL% NEQ 0 (
