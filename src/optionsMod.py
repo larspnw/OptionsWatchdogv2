@@ -2,10 +2,15 @@ import json
 import logging
 import boto3
 import uuid
+import os
 
+DEBUG = os.getenv('DEBUG', default=0)
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-#logger.setLevel(logging.DEBUG)
+if DEBUG == "1":
+    logger.setLevel(logging.DEBUG)
+else:
+    logger.setLevel(logging.INFO)
+logging.info("DEBUG: " + DEBUG)
 
 def lambda_handler(event, context):
     logger.debug("event: " + json.dumps(event))
@@ -42,6 +47,7 @@ def lambda_handler(event, context):
         #TODO need date validation
         expirationDate = stock.get("date", "1970/01/01")
         premium = stock.get("premium", "0")
+        coveredCall = stock.get("coveredCall", "n")
         u = uuid.uuid4()
 
         table.put_item(
@@ -52,6 +58,7 @@ def lambda_handler(event, context):
                 'optionsPrice': optionsPrice,
                 'expirationDate': expirationDate,
                 'premium': premium,
+                'coveredCall': coveredCall,
             }
         )
     return {
