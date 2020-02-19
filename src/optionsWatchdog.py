@@ -153,7 +153,7 @@ def lambda_handler(event, context):
     }
 
 def runIndexes():
-    indexes = ["^VIX", "^GSPC"]
+    indexes = ["^VIX", "^GSPC", "^DJI"]
     id = "16"
     ilist = []
     for index in indexes:

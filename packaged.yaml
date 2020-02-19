@@ -94,7 +94,7 @@ Outputs:
 Resources:
   OptionsDeleteFunction:
     Properties:
-      CodeUri: s3://larsbucket1/90a91b03290fce4d006c1bbc7053b4a8
+      CodeUri: s3://larsbucket1/a4e3b153e8649306755d9f2f310a1e73
       Events:
         OptionsMod:
           Properties:
@@ -108,7 +108,7 @@ Resources:
     Type: AWS::Serverless::Function
   OptionsExpiredFunction:
     Properties:
-      CodeUri: s3://larsbucket1/17e3104078b1759df4bf972289cef819
+      CodeUri: s3://larsbucket1/dc07a113219a89cdcf5403e156a513d1
       Events:
         OptionsMod:
           Properties:
@@ -122,7 +122,7 @@ Resources:
     Type: AWS::Serverless::Function
   OptionsModFunction:
     Properties:
-      CodeUri: s3://larsbucket1/ffe82cea653706e08973993dd1bed38a
+      CodeUri: s3://larsbucket1/0d7ed5bff3e622a18269351e96440c28
       Events:
         OptionsMod:
           Properties:
@@ -136,7 +136,7 @@ Resources:
     Type: AWS::Serverless::Function
   OptionsSummaryFunction:
     Properties:
-      CodeUri: s3://larsbucket1/1fd85824675c19204358a37cfb89fc8f
+      CodeUri: s3://larsbucket1/05b465d67cd38437dea567b41a4fe5b2
       Events:
         OptionsMod:
           Properties:
@@ -150,7 +150,7 @@ Resources:
     Type: AWS::Serverless::Function
   OptionsWatchdogFunction:
     Properties:
-      CodeUri: s3://larsbucket1/0cc165865eee4978938348bba4dd49b6
+      CodeUri: s3://larsbucket1/0296ddd0eac9f30b6cd228d0d7cc5f2e
       Events:
         OptionsWatchdog:
           Properties:
