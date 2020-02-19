@@ -219,8 +219,22 @@ def yScrape2(stock):
     if tag:
         return str(tag)
 
+    #might need this one day to troubleshoot why we're not getting results
+    #else:
+        ##TODO yahoo changed their return code - try this - if it's consistent then make it the primary search
+        #logging.debug("soup span try 2")
+        #tag = soup.find_all('span', class_="Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)")
+                              ##<span class="Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)">76.37</span>
+        #if tag:
+            #return str(tag)
+        #else:
+            ##what are we receiving
+            #s = soup.find_all('span')
+            #logging.debug("Spans found::>")
+            #logging.debug(s)
+
     #TODO ERROR handling
-    logging.debug("no last price found")
+    logging.info("no last price found - is the ticker correct: " + stock)
     return "---"
 
 def parseBid2(b):
