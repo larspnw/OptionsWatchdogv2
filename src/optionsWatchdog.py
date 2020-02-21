@@ -355,7 +355,13 @@ def bid_worker(name, conn):
     logging.debug("bid_worker entered for " + name)
     r = yScrape2(name)
     logging.debug("bid_worker scraped " + name)
-    conn.send([name + ":" + str(parseBid2(r))])
+    #ORIG: conn.send([name + ":" + str(parseBid2(r))])
+    ret = 0
+    try:
+        ret = parseBid2(r)
+    except:
+        logging.error("bid_worker: parseBid2 failure")
+    conn.send([name + ":" + str(ret)])
     conn.close()
 
 if __name__ == '__main__':

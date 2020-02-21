@@ -8,7 +8,8 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-sam package --output-template packaged.yaml --s3-bucket larsbucket1
+sam package --output-template-file packaged.yaml --s3-bucket larsbucket1
+#OLDER sam versions:: sam package --output-template packaged.yaml --s3-bucket larsbucket1
 if [ $? -ne 0 ]; then
 	echo package failed
 	exit 1
